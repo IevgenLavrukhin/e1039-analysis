@@ -27,6 +27,8 @@ int Fun4Sim(const int nevent = 10)
   const bool do_fmag = true;
   const bool do_kmag = true;
   const bool do_absorber = true;
+  const bool do_dphodo = true;
+  const bool do_station1DC = false;       //station-1 drift chamber should be turned off by default
 
   const double target_l = 7.9; //cm
   const double target_z = (7.9-target_l)/2.; //cm
@@ -226,7 +228,7 @@ int Fun4Sim(const int nevent = 10)
   }
 
   // sensitive elements of the spectrometer
-  SetupSensitiveDetectors(g4Reco, 0);
+  SetupSensitiveDetectors(g4Reco, do_dphodo, do_station1DC);
 
   se->registerSubsystem(g4Reco);
 
@@ -240,6 +242,8 @@ int Fun4Sim(const int nevent = 10)
   // digitizer
   DPDigitizer *digitizer = new DPDigitizer("DPDigitizer", 0);
   //digitizer->Verbosity(99);
+  digitizer->set_enable_st1dc(do_station1DC);    // these two lines need to be in sync with the parameters used
+  digitizer->set_enable_dphodo(do_dphodo);       // in the SetupSensitiveVolumes() function call above
   se->registerSubsystem(digitizer);
 
   // embedding
