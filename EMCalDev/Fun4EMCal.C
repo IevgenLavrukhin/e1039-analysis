@@ -44,6 +44,10 @@ int Fun4EMCal(const int nevent = 1)
   SetupEMCal(g4Reco);
   se->registerSubsystem(g4Reco);
 
+  // save truth info to the Node Tree
+  PHG4TruthSubsystem* truth = new PHG4TruthSubsystem();
+  g4Reco->registerSubsystem(truth);
+
   SQDigitizer* digitizer = new SQDigitizer("Digitizer", 0);
   digitizer->Verbosity(0);
   digitizer->registerEMCal("EMCal", 100);

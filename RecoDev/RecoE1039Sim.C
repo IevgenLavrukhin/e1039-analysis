@@ -14,6 +14,7 @@ R__LOAD_LIBRARY(libg4dst)
 R__LOAD_LIBRARY(libdptrigger)
 R__LOAD_LIBRARY(libktracker)
 R__LOAD_LIBRARY(libevt_filter)
+R__LOAD_LIBRARY(libanamodule)
 
 using namespace std;
 
@@ -24,7 +25,7 @@ suitable for production use and users should develop their own reconstruction ma
 
 int RecoE1039Sim(const int nevent = 10)
 {
-  const bool dimuon = true;
+  const bool dimuon = false;
   const bool single = !dimuon;
 
   const bool do_collimator = true;
@@ -45,6 +46,7 @@ int RecoE1039Sim(const int nevent = 10)
   recoConsts *rc = recoConsts::instance();
   rc->set_DoubleFlag("FMAGSTR", FMAGSTR);
   rc->set_DoubleFlag("KMAGSTR", KMAGSTR);
+  rc->set_IntFlag("RANDOMSEED", 12345);
   rc->Print();
 
   JobOptsSvc* jobopt_svc = JobOptsSvc::instance();
@@ -143,7 +145,7 @@ int RecoE1039Sim(const int nevent = 10)
   se->registerSubsystem(inacc);
 
   // digitizer
-  DPDigitizer* digitizer = new DPDigitizer("DPDigitizer", 0);
+  SQDigitizer* digitizer = new SQDigitizer("Digitizer", 0);
   //digitizer->Verbosity(99);
   se->registerSubsystem(digitizer);
 
@@ -163,6 +165,11 @@ int RecoE1039Sim(const int nevent = 10)
   //reco->add_eval_list(2);             //include station-2 tracks in eval tree for debuging
   se->registerSubsystem(reco);
 
+  //A simple analysis module for single muon tracking QA
+  AnaModule* ana = new AnaModule();
+  ana->set_output_filename("ana.root");
+  se->registerSubsystem(ana);
+
   //Vertexing is not tested and probably does not work yet
   // VertexFit* vertexing = new VertexFit();
   // se->registerSubsystem(vertexing);
@@ -179,7 +186,7 @@ int RecoE1039Sim(const int nevent = 10)
   se->registerOutputManager(out);
 
   se->run(nevent);
-  //PHGeomUtility::ExportGeomtry(se->topNode(),"geom.root");
+  PHGeomUtility::ExportGeomtry(se->topNode(), "geom.root");
 
   // finish job - close and save output files
   se->End();

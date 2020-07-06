@@ -39,8 +39,8 @@ Trigger_Repository    $TRIGGER_ROOT
 Trigger_L1            67
 
 #Magnet field maps
-fMagFile              $GEOMETRY_ROOT/magnetic_fields/tab.Fmag
-kMagFile              $GEOMETRY_ROOT/magnetic_fields/tab.Kmag
+fMagFile              $GEOMETRY_ROOT/magnetic_fields/Fmag.root
+kMagFile              $GEOMETRY_ROOT/magnetic_fields/Kmag.root
 
 #Geometry schema
 Geometry_Version      user_e1039_geom_plane.param_G9_run5_2
