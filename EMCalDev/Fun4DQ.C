@@ -46,10 +46,10 @@ int Fun4DQ(const int nevent = 10)
   recoConsts *rc = recoConsts::instance();
   rc->set_DoubleFlag("FMAGSTR", FMAGSTR);
   rc->set_DoubleFlag("KMAGSTR", KMAGSTR);
+  rc->set_CharFlag("AlignmentMille", "support/align_mille.txt");
+  rc->set_CharFlag("fMagFile", "$E1039_RESOURCE/geometry/magnetic_fields/tab.Fmag");
+  rc->set_CharFlag("kMagFile", "$E1039_RESOURCE/geometry/magnetic_fields/tab.Kmag");
   rc->Print();
-
-  JobOptsSvc* jobopt_svc = JobOptsSvc::instance();
-  jobopt_svc->init("support/e1039_sim.opts");
 
   GeomSvc::UseDbSvc(true);
   GeomSvc* geom_svc = GeomSvc::instance();
@@ -103,8 +103,8 @@ int Fun4DQ(const int nevent = 10)
   PHG4Reco* g4Reco = new PHG4Reco();
   //PHG4Reco::G4Seed(123);
   g4Reco->set_field_map(
-      jobopt_svc->m_fMagFile+" "+
-      jobopt_svc->m_kMagFile+" "+
+      rc->get_CharFlag("fMagFile")+" "+
+      rc->get_CharFlag("kMagFile")+" "+
       Form("%f",FMAGSTR) + " " +
       Form("%f",KMAGSTR) + " " +
       "5.0",
@@ -122,7 +122,7 @@ int Fun4DQ(const int nevent = 10)
   SetupTarget(g4Reco, target_coil_pos_z, target_l, target_z, 1, 0);
   SetupInsensitiveVolumes(g4Reco, do_shielding, do_fmag, do_kmag, do_absorber);
   SetupSensitiveDetectors(g4Reco);
-  SetupEMCal(g4Reco, "EMCal", 0., -110., 1930.);
+  SetupEMCal(g4Reco, "EMCal", 0., 0., 1930.);
   se->registerSubsystem(g4Reco);
 
   // save truth info to the Node Tree

@@ -14,23 +14,20 @@ R__LOAD_LIBRARY(libg4dst)
 R__LOAD_LIBRARY(libdptrigger)
 R__LOAD_LIBRARY(libktracker)
 R__LOAD_LIBRARY(libevt_filter)
-R__LOAD_LIBRARY(libanamodule)
+R__LOAD_LIBRARY(libana_trkqa)
 
 using namespace std;
 
 /*
-This is an example script intended to demonstrate how to run SQReco in a minimalistic fashion, it is NOT
-suitable for production use and users should develop their own reconstruction macro for their own analysis.
+Macro to run AnaTrkQA module (still in development)
 */
 
-int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345)
+int Fun4Sim_TrkQA(const int nevent = 10)
 {
-  const bool cosmic = false;
-  const bool dimuon = false && (!cosmic);
-  const bool single = (!dimuon) && (!cosmic);
-  const bool jpsi   = false;
-
-  const bool legacy_rec_container = false;
+ 
+  
+  const bool single_gun = true;
+  const bool dimuon_gun =false;
 
   const bool do_collimator = true;
   const bool do_target     = true;
@@ -50,16 +47,10 @@ int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345
   recoConsts *rc = recoConsts::instance();
   rc->set_DoubleFlag("FMAGSTR", FMAGSTR);
   rc->set_DoubleFlag("KMAGSTR", KMAGSTR);
-  rc->set_IntFlag("RANDOMSEED", seed);
+  //rc->set_IntFlag("RANDOMSEED", seed);
   rc->set_DoubleFlag("SIGX_BEAM", 2.);
   rc->set_DoubleFlag("SIGY_BEAM", 2.);
-  if(cosmic)
-  {
-    rc->init("cosmic");
-    rc->set_BoolFlag("COARSE_MODE", true);
-    rc->set_DoubleFlag("KMAGSTR", 0.);
-    rc->set_DoubleFlag("FMAGSTR", 0.);
-  }
+ 
   rc->Print();
 
   GeomSvc::UseDbSvc(true);
@@ -69,41 +60,12 @@ int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345
   Fun4AllServer *se = Fun4AllServer::instance();
   se->Verbosity(0);
 
-  if(dimuon)  //change the pythia configuration file to change the dimuons generated
-  {
-    PHPythia8 *pythia8 = new PHPythia8();
-    //pythia8->Verbosity(99);
-    if(jpsi) 
-      pythia8->set_config_file("support/phpythia8_Jpsi.cfg");
-    else
-      pythia8->set_config_file("support/phpythia8_DY.cfg");
+  
 
-    pythia8->set_vertex_distribution_mean(0, 0, target_coil_pos_z, 0);
-    se->registerSubsystem(pythia8);
-
-    pythia8->set_trigger_AND();
-
-    PHPy8ParticleTrigger* trigger_mup = new PHPy8ParticleTrigger();
-    trigger_mup->AddParticles("-13");
-    trigger_mup->SetPzHighLow(120, 15); 
-    pythia8->register_trigger(trigger_mup);
-
-    PHPy8ParticleTrigger* trigger_mum = new PHPy8ParticleTrigger();
-    trigger_mum->AddParticles("13");
-    trigger_mum->SetPzHighLow(120, 15); 
-    pythia8->register_trigger(trigger_mum);
-
-    HepMCNodeReader* hr = new HepMCNodeReader();
-    hr->set_particle_filter_on(true);
-    hr->insert_particle_filter_pid(13);
-    hr->insert_particle_filter_pid(-13);
-    se->registerSubsystem(hr);
-  }
-
-  if(single)   //change the hard-coded numbers to change the initial vertex/momentum distribution
+  if(single_gun)   //change the hard-coded numbers to change the initial vertex/momentum distribution
   {
     PHG4SimpleEventGenerator* genp = new PHG4SimpleEventGenerator("MUP"); 
-    genp->add_particles("mu+", 1);  // mu+,e+,proton,pi+,Upsilon
+    genp->add_particles("mu+", 1);  // mu+,mu-,e+,proton,pi+,Upsilon
     genp->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform, PHG4SimpleEventGenerator::Uniform, PHG4SimpleEventGenerator::Uniform);
     genp->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
     genp->set_vertex_distribution_width(0.0, 0.0, 0.0);
@@ -113,11 +75,56 @@ int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345
     se->registerSubsystem(genp);
   }
 
-  if(cosmic)
-  {
-    SQCosmicGen* cosmicGen = new SQCosmicGen();
-    se->registerSubsystem(cosmicGen);
+// multi particle gun
+  if(dimuon_gun) {
+    PHG4SimpleEventGenerator *genp = new PHG4SimpleEventGenerator("MUP");
+    //genp->set_seed(123);
+    genp->add_particles("mu+", 1);  // mu+,e+,proton,pi+,Upsilon
+    genp->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform,
+        PHG4SimpleEventGenerator::Uniform,
+        PHG4SimpleEventGenerator::Uniform);
+    genp->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
+    genp->set_vertex_distribution_width(0.0, 0.0, 0.0);
+    genp->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
+    genp->set_vertex_size_parameters(0.0, 0.0);
+
+    if(FMAGSTR>0)
+      //genp->set_pxpypz_range(0,6, -6,6, 10,100);
+      genp->set_pxpypz_range(-3,6, -3,3, 10,100);
+    else
+      //genp->set_pxpypz_range(-6,0, -6,6, 10,100);
+      genp->set_pxpypz_range(-6,3, -3,3, 10,100);
+
+
+    genp->Verbosity(0);
+    se->registerSubsystem(genp);
+  
+    PHG4SimpleEventGenerator *genm = new PHG4SimpleEventGenerator("MUP");
+    //genm->set_seed(123);
+    genm->add_particles("mu-", 1);  // mu+,e+,proton,pi+,Upsilon
+    genm->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform,
+        PHG4SimpleEventGenerator::Uniform,
+        PHG4SimpleEventGenerator::Uniform);
+    genm->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
+    genm->set_vertex_distribution_width(0.0, 0.0, 0.0);
+    genm->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
+    genm->set_vertex_size_parameters(0.0, 0.0);
+
+    if(FMAGSTR>0)
+      //genm->set_pxpypz_range(-6,0, -6,6, 10,100);
+      genm->set_pxpypz_range(-6,3, -3,3, 10,100);
+    else
+      //genm->set_pxpypz_range(0,6, -6,6, 10,100);
+      genm->set_pxpypz_range(-3,6, -3,3, 10,100);
+
+    genm->Verbosity(0);
+    se->registerSubsystem(genm);
   }
+
+
+
+
+
 
   // Fun4All G4 module
   PHG4Reco* g4Reco = new PHG4Reco();
@@ -151,7 +158,7 @@ int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345
   PHG4TruthSubsystem* truth = new PHG4TruthSubsystem();
   g4Reco->registerSubsystem(truth);
 
-  // apply in-acceptance cut
+ /* // apply in-acceptance cut
   RequireParticlesInAcc* inacc = new RequireParticlesInAcc();
   if(dimuon)
   {
@@ -163,7 +170,7 @@ int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345
     inacc->SetNumParticlesPerEvent(1);
     se->registerSubsystem(inacc);
   }
-  
+ */ 
   // digitizer
   SQDigitizer* digitizer = new SQDigitizer("Digitizer", 0);
   //digitizer->Verbosity(99);
@@ -172,38 +179,39 @@ int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345
   // trakcing module
   SQReco* reco = new SQReco();
   reco->Verbosity(0);
-  reco->set_legacy_rec_container(legacy_rec_container);
+  //reco->set_legacy_rec_container(legacy_rec_container);
   //reco->set_geom_file_name("support/geom.root"); //not needed as it's created on the fly
   reco->set_enable_KF(true);           //Kalman filter not needed for the track finding, disabling KF saves a lot of initialization time
   reco->setInputTy(SQReco::E1039);     //options are SQReco::E906 and SQReco::E1039
   reco->setFitterTy(SQReco::KFREF);    //not relavant for the track finding
   reco->set_evt_reducer_opt("none");   //if not provided, event reducer will be using JobOptsSvc to intialize; to turn off, set it to "none", for normal tracking, set to something like "aoc"
   reco->set_enable_eval(true);          //set to true to generate evaluation file which includes final track candidates 
-  reco->set_eval_file_name(Form("eval_%s_%d.root", prefix.Data(), seed));
+  reco->set_eval_file_name("eval.root");
   reco->set_enable_eval_dst(false);     //set to true to include final track cnadidates in the DST tree
-  if(cosmic) reco->add_eval_list(3);    //output of cosmic reco is contained in the eval output for now
+  //if(cosmic) reco->add_eval_list(3);    //output of cosmic reco is contained in the eval output for now
   //reco->add_eval_list(3);             //include back partial tracks in eval tree for debuging
   //reco->add_eval_list(2);             //include station-3+/- in eval tree for debuging
   //reco->add_eval_list(1);             //include station-2 in eval tree for debugging
   se->registerSubsystem(reco);
 
-  TruthNodeMaker* truthMaker = new TruthNodeMaker();
+/*  TruthNodeMaker* truthMaker = new TruthNodeMaker();
   truthMaker->set_legacy_rec_container(legacy_rec_container);
   se->registerSubsystem(truthMaker);
 
   SQTruthVertexing* truthVtx = new SQTruthVertexing();
   truthVtx->set_legacy_rec_container(legacy_rec_container);
   se->registerSubsystem(truthVtx);
+*/
 
-  //A simple analysis module for single muon tracking QA
-  AnaModule* ana = new AnaModule();
-  ana->set_output_filename(Form("ana_%s_%d.root", prefix.Data(), seed));
-  ana->set_legacy_rec_container(legacy_rec_container);
-  se->registerSubsystem(ana);
+ VertexFit* vertexing = new VertexFit();
+ se->registerSubsystem(vertexing);
 
-  // Vertexing is not tested and probably does not work yet
-  // VertexFit* vertexing = new VertexFit();
-  // se->registerSubsystem(vertexing);
+  //Analysis module for track QA
+  AnaTrkQA* trackQA = new AnaTrkQA();
+  trackQA->set_out_name("trackQA.root");
+  se->registerSubsystem(trackQA);  
+
+ 
 
   // input - we need a dummy to drive the event loop
   Fun4AllInputManager *in = new Fun4AllDummyInputManager("DUMMY");
@@ -213,8 +221,8 @@ int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345
   // Output
   ///////////////////////////////////////////
   // DST output manager, tunred off to save disk by default
-  Fun4AllDstOutputManager* out = new Fun4AllDstOutputManager("DSTOUT", Form("DST_%s_%d.root", prefix.Data(), seed));
-  se->registerOutputManager(out);
+  //Fun4AllDstOutputManager* out = new Fun4AllDstOutputManager("DSTOUT","DST.root");
+  //se->registerOutputManager(out);
 
   se->run(nevent);
   PHGeomUtility::ExportGeomtry(se->topNode(), "geom.root");

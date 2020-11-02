@@ -1,6 +1,11 @@
 #!/bin/bash
 
 FN_LIST=list_dst.txt
+FN_INFO=info_dst.txt
+
+{
+echo "Command: $0 $*"
+echo "Time: $(date '+%F %H:%M:%S')"
 
 NUM_TOT=0
 SIZE_TOT=0
@@ -17,3 +22,5 @@ done 3>$FN_LIST
 
 echo
 echo "Total: $NUM_TOT files, $(( $SIZE_TOT/1024 )) MB"
+
+} | tee $FN_INFO

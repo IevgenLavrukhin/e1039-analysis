@@ -1,7 +1,8 @@
-#include "G4_InsensitiveVolumes.C"
-#include "G4_SensitiveDetectors.C"
-#include "G4_Beamline.C"
-#include "G4_Target.C"
+#include <top/G4_Beamline.C>
+#include <top/G4_Target.C>
+#include <top/G4_InsensitiveVolumes.C>
+#include <top/G4_SensitiveDetectors.C>
+
 R__LOAD_LIBRARY(libfun4all)
 R__LOAD_LIBRARY(libPHPythia8)
 R__LOAD_LIBRARY(libg4detectors)
@@ -20,6 +21,7 @@ int Fun4Sim(const int nevent = 10)
   const double target_coil_pos_z = -300;
   const int nmu = 1;
   int embedding_opt = 0;
+  const bool legacy_rec_container = true;
 
   const bool do_collimator = true;
   const bool do_target = true;
@@ -38,18 +40,23 @@ int Fun4Sim(const int nevent = 10)
   const double KMAGSTR = -0.951;
 
   const bool gen_pythia8  = true; // false;
+  const bool gen_cosmic   = false;
   const bool gen_gun      = false;
   const bool gen_particle = false;
   const bool read_hepmc   = false;
   const bool gen_e906legacy = false; //E906LegacyGen()
+  const bool save_in_acc  = false; //< Set true to save only in-acceptance events into DST.
 
   recoConsts *rc = recoConsts::instance();
   rc->set_DoubleFlag("FMAGSTR", FMAGSTR);
   rc->set_DoubleFlag("KMAGSTR", KMAGSTR);
+  if(gen_cosmic) {
+    rc->init("cosmic");
+    rc->set_BoolFlag("COARSE_MODE", true);
+    rc->set_DoubleFlag("KMAGSTR", 0.);
+    rc->set_DoubleFlag("FMAGSTR", 0.);
+  }
   rc->Print();
-
-  JobOptsSvc *jobopt_svc = JobOptsSvc::instance();
-  jobopt_svc->init("run7_sim.opts");
 
   GeomSvc::UseDbSvc(true);
   GeomSvc *geom_svc = GeomSvc::instance();
@@ -69,8 +76,8 @@ int Fun4Sim(const int nevent = 10)
   if(gen_pythia8) {    
     PHPythia8 *pythia8 = new PHPythia8();
     //pythia8->Verbosity(99);
-    pythia8->set_config_file("phpythia8_DY.cfg");
-    //pythia8->set_config_file("phpythia8_Jpsi.cfg");
+//    pythia8->set_config_file("phpythia8_DY.cfg");
+    pythia8->set_config_file("phpythia8_Jpsi.cfg");
     pythia8->set_vertex_distribution_mean(0, 0, target_coil_pos_z, 0);
     pythia8->set_embedding_id(1);
     se->registerSubsystem(pythia8);
@@ -159,8 +166,7 @@ int Fun4Sim(const int nevent = 10)
     se->registerSubsystem(genm);
   }
 
- // E906LegacyGen
-  //@
+  // E906LegacyGen
   if(gen_e906legacy){
     SQPrimaryParticleGen *e906legacy = new  SQPrimaryParticleGen();
     
@@ -191,17 +197,19 @@ int Fun4Sim(const int nevent = 10)
 
     se->registerSubsystem(e906legacy);
   }
-  //@
 
-
+  if(gen_cosmic) {
+    SQCosmicGen* cosmicGen = new SQCosmicGen();
+    se->registerSubsystem(cosmicGen);
+  }
 
   // Fun4All G4 module
   PHG4Reco *g4Reco = new PHG4Reco();
   //PHG4Reco::G4Seed(123);
   //g4Reco->set_field(5.);
   g4Reco->set_field_map(
-      jobopt_svc->m_fMagFile+" "+
-      jobopt_svc->m_kMagFile+" "+
+      rc->get_CharFlag("fMagFile")+" "+
+      rc->get_CharFlag("kMagFile")+" "+
       Form("%f",FMAGSTR) + " " +
       Form("%f",KMAGSTR) + " " +
       "5.0",
@@ -232,19 +240,21 @@ int Fun4Sim(const int nevent = 10)
 
   se->registerSubsystem(g4Reco);
 
+  if (save_in_acc) se->registerSubsystem(new RequireParticlesInAcc());
+
   // save truth info to the Node Tree
   PHG4TruthSubsystem *truth = new PHG4TruthSubsystem();
   g4Reco->registerSubsystem(truth);
 
-  // Make SQ nodes for truth info
-  se->registerSubsystem(new TruthNodeMaker());
-
   // digitizer
-  DPDigitizer *digitizer = new DPDigitizer("DPDigitizer", 0);
+  SQDigitizer *digitizer = new SQDigitizer("DPDigitizer", 0);
   //digitizer->Verbosity(99);
   digitizer->set_enable_st1dc(do_station1DC);    // these two lines need to be in sync with the parameters used
   digitizer->set_enable_dphodo(do_dphodo);       // in the SetupSensitiveVolumes() function call above
   se->registerSubsystem(digitizer);
+
+  // Make SQ nodes for truth info
+  se->registerSubsystem(new TruthNodeMaker());
 
   // embedding
   if(embedding_opt == 1) {
@@ -273,18 +283,25 @@ int Fun4Sim(const int nevent = 10)
   se->registerSubsystem(evt_filter);
 
   // trakcing module
-  KalmanFastTrackingWrapper *ktracker = new KalmanFastTrackingWrapper();
-  //ktracker->Verbosity(99);
-  ktracker->set_enable_event_reducer(true);
-  ktracker->set_DS_level(0);
-  ktracker->set_pattern_db_name(gSystem->ExpandPathName("$E1039_RESOURCE/dsearch/v1/pattern.root"));
-  //ktracker->set_sim_db_name(gSystem->ExpandPathName("$E1039_RESOURCE/dsearch/v1/sim.root"));
-  //PatternDBUtil::ResScaleDC3(3);
-  //PatternDBUtil::LooseMode(false);
-  se->registerSubsystem(ktracker);
+    // trakcing module
+  SQReco* reco = new SQReco();
+  reco->Verbosity(0);
+  //reco->set_geom_file_name("support/geom.root"); //not needed as it's created on the fly
+  reco->set_enable_KF(true);           //Kalman filter not needed for the track finding, disabling KF saves a lot of initialization time
+  reco->setInputTy(SQReco::E1039);     //options are SQReco::E906 and SQReco::E1039
+  reco->setFitterTy(SQReco::KFREF);    //not relavant for the track finding
+  reco->set_evt_reducer_opt("none");   //if not provided, event reducer will be using JobOptsSvc to intialize; to turn off, set it to "none", for normal tracking, set to something like "aoc"
+  reco->set_enable_eval(true);          //set to true to generate evaluation file which includes final track candidates 
+  reco->set_eval_file_name("eval.root");
+  reco->set_enable_eval_dst(false);     //set to true to include final track cnadidates in the DST tree
+  if(gen_cosmic) reco->add_eval_list(3);    //output of cosmic reco is contained in the eval output for now
+  //reco->add_eval_list(3);             //include back partial tracks in eval tree for debuging
+  //reco->add_eval_list(2);             //include station-3+/- in eval tree for debuging
+  //reco->add_eval_list(1);             //include station-2 in eval tree for debugging
+  se->registerSubsystem(reco);
 
-  VertexFit* vertexing = new VertexFit();
-  se->registerSubsystem(vertexing);
+  // VertexFit* vertexing = new VertexFit();
+  // se->registerSubsystem(vertexing);
 
   //// Trim minor data nodes (to reduce the DST file size)
   //se->registerSubsystem(new SimDstTrimmer());
