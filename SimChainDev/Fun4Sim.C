@@ -271,19 +271,16 @@ int Fun4Sim(const int nevent = 10)
 
   // Trigger Emulator
   DPTriggerAnalyzer* dptrigger = new DPTriggerAnalyzer();
-  dptrigger->set_hit_container_choice("Vector");
-  dptrigger->set_road_set_file_name(gSystem->ExpandPathName("$E1039_RESOURCE/trigger/trigger_67.txt"));
-  //dptrigger->Verbosity(99);
+  dptrigger->set_road_set_file_name("$E1039_RESOURCE/trigger/trigger_67.txt");
   se->registerSubsystem(dptrigger);
 
   // Event Filter
-  EvtFilter *evt_filter = new EvtFilter();
+  //EvtFilter *evt_filter = new EvtFilter();
   //evt_filter->Verbosity(10);
   //evt_filter->set_trigger_req(1<<5);
-  se->registerSubsystem(evt_filter);
+  //se->registerSubsystem(evt_filter);
 
-  // trakcing module
-    // trakcing module
+  // Tracking module
   SQReco* reco = new SQReco();
   reco->Verbosity(0);
   //reco->set_geom_file_name("support/geom.root"); //not needed as it's created on the fly
@@ -300,8 +297,10 @@ int Fun4Sim(const int nevent = 10)
   //reco->add_eval_list(1);             //include station-2 in eval tree for debugging
   se->registerSubsystem(reco);
 
-  // VertexFit* vertexing = new VertexFit();
-  // se->registerSubsystem(vertexing);
+  VertexFit* vertexing = new VertexFit();
+  //vertexing->enable_fit_target_center(); //uncomment if you want to fit in the target center
+  //vertexing->enableOptimization(); //uncomment if you want to fit according to new optimization formula
+  se->registerSubsystem(vertexing);
 
   //// Trim minor data nodes (to reduce the DST file size)
   //se->registerSubsystem(new SimDstTrimmer());
@@ -322,7 +321,7 @@ int Fun4Sim(const int nevent = 10)
   // Output
   ///////////////////////////////////////////
 
-  // DST output manager, tunred off to save disk by default
+  // DST output manager
   Fun4AllDstOutputManager *out = new Fun4AllDstOutputManager("DSTOUT", "DST.root");
   se->registerOutputManager(out);
 

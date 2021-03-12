@@ -6,10 +6,14 @@ LIFE_TIME=medium # short (3h), medium (8h) or long (23h)
 jobname=$1
 do_sub=$2
 njobs=$3
-nevents=$4
+nfile=$4
+list=$5
 
 echo "njobs=$njobs"
-echo "nevents=$nevents"
+echo "nfile=$nfile"
+echo "list=$list"
+
+
 if [ $do_sub == 1 ]; then
     echo "Grid mode."
     if ! which jobsub_submit &>/dev/null ; then
@@ -48,14 +52,14 @@ do
     cmd="$cmd -L $work/$id/log/log.txt"
     cmd="$cmd -f $work/input.tar.gz"
     cmd="$cmd -d OUTPUT $work/$id/out"
-    cmd="$cmd file://`which $work/$id/gridrun.sh` $nevents $id"
+    cmd="$cmd file://`which $work/$id/gridrun.sh` $nfile $list $id"
     echo "$cmd"
     $cmd
   else
     mkdir -p $work/$id/input
     rsync -av $work/input.tar.gz $work/$id/input
     cd $work/$id/
-    $work/$id/gridrun.sh $nevents $id | tee $work/$id/log/log.txt
+    $work/$id/gridrun.sh $nfile $list $id | tee $work/$id/log/log.txt
     cd -
   fi
 done 2>&1 | tee log_gridsub.txt

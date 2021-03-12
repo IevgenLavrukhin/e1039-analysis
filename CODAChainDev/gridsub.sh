@@ -58,8 +58,10 @@ do
   rsync -a $macros/gridrun.sh $local_work_dir/gridrun.sh
 
   if [ $do_sub == 1 ]; then
-    cmd="jobsub_submit"
-    cmd="$cmd -g --OS=SL7 --use_gftp --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC,OFFSITE -e IFDHC_VERSION --expected-lifetime='short'"
+    cmd="jobsub_submit --grid"
+    cmd="$cmd -l '+SingularityImage=\"/cvmfs/singularity.opensciencegrid.org/e1039/e1039-sl7:latest\"'"
+    cmd="$cmd --append_condor_requirements='(TARGET.HAS_SINGULARITY=?=true)'"
+    cmd="$cmd --use_gftp --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC,OFFSITE -e IFDHC_VERSION --expected-lifetime='short'"
     cmd="$cmd --mail_never"
     cmd="$cmd -L $local_work_dir/log/log.txt"
     cmd="$cmd -f $local_work_dir/input.tar.gz"

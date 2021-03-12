@@ -19,3 +19,6 @@ The splitted dst files will be outputed to `/pnfs/e906/persistent/users/$USER/Ds
 ./gridsub_data.sh ouput_dir 1 run_list.txt 0 split 
 ```
 
+## Note:
+1. Please turn on `reco->set_enable_eval_dst(true);` in the `RecoE1039Data.C` macro to add the tracklet vector node to DST
+1. Don't the chage the name of the input file in the macro while running grid job. Keep it as it is (i.e. `data.root`)
